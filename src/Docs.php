@@ -79,7 +79,6 @@ class Docs
 
                 return collect($reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC))
                     ->map(function (ReflectionMethod $method) use ($name) {
-                        dd($this->getMethodAnnotations($method, Param::class));
 
                         $params = $this->getAnnotationsFrom($method, Param::class)
                             ->map(fn (object $param) => $param->toArray());
