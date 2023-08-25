@@ -42,6 +42,43 @@ class Docs
     /**
      * @return \Illuminate\Support\Collection
      */
+    public function getAnnotationsJson(): Collection
+    {
+        return collect($this->procedures)
+            ->map(function (string $class) {
+                $reflectionClass = new ReflectionClass($class);
+                $name = $reflectionClass->getProperty('name')->getValue();
+
+                return collect($reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC))
+                    ->map(function (ReflectionMethod $method) use ($name) {
+                        dd($this->getMethodAnnotations($method, Param::class));
+
+                        $params = $this->getAnnotationsFrom($method, Param::class)
+                            ->map(fn (object $param) => $param->toArray());
+                        $results = $this->getAnnotationsFrom($method, Result::class)
+                            ->map(fn (object $result) => $result->toArray());
+
+                        $factory = DocBlockFactory::createInstance();
+                        $comment = $method->getDocComment();
+                        $docblock = $factory->create($comment === false ? ' ' : $comment);
+                        $description = $docblock->getSummary();
+
+                        return [
+                            'name'        => $name,
+                            'description' => $description,
+                            'delimiter'   => $this->delimiter,
+                            'method'      => $method->getName(),
+                            'parameters'  => $params,
+                            'returns'     => $results
+                        ];
+                    });
+            })
+            ->flatten(1);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection
+     */
     public function getAnnotations(): Collection
     {
         return collect($this->procedures)

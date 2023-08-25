@@ -12,10 +12,10 @@ final class Result
     /**
      * @var string
      */
-    public string $name;
+    public string $type;
 
     /**
-     * @var string
+     * @var string|mixed
      */
     public $value;
 }
