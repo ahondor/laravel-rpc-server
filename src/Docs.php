@@ -33,10 +33,38 @@ class Docs
      *
      * @param Route $route
      */
-    public function __construct(Route $route)
+    public function __construct(protected Route $route)
     {
         $this->procedures = $route->defaults['procedures'];
         $this->delimiter = $route->defaults['delimiter'] ?? '@';
+    }
+
+    public function toArray(array $mergeData = [])
+    {
+        $procedures = collect($this->getAnnotationsJson())->map(function($procedure) {
+            $name = $procedure['name'] . $procedure['delimiter'] . $procedure['method'];
+
+            return [
+                $name => [
+                    "envelope"   => "JSON-RPC-2.0",
+                    "transport"  => "POST",
+                    "name"       => $name,
+                    "parameters" => $procedure['parameters'],
+                    "returns"    => $procedure['returns']
+                ]
+            ];
+        });
+
+        return [
+            "transport"   => "POST",
+            "envelope"    => "JSON-RPC-2.0",
+            "contentType" => "application/json",
+            "SMDVersion"  => "2.0",
+            "description" => null,
+            "target"      => $this->route->uri(),
+            "services"    => $procedures,
+            "methods"     => $procedures
+        ];
     }
 
     /**
