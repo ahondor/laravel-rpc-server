@@ -1,17 +1,21 @@
 {
-    "name": "sajya/server",
+    "name": "ahondor/laravel-rpc-server",
     "description": "Easy implementation of the JSON-RPC 2.0 server for the Laravel framework.",
     "keywords": [
         "rpc",
         "json-prc",
         "api"
     ],
-    "homepage": "https://sajya.github.io",
+    "homepage": "https://github.com/ahondor/laravel-rpc-server",
     "license": "MIT",
     "authors": [
         {
             "name": "Alexandr Chernyaev",
             "email": "bliz48rus@gmail.com"
+        },
+        {
+            "name": "Andrii Yova",
+            "email": "yovaanriy@gmail.com"
         }
     ],
     "require": {
