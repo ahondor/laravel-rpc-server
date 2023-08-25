@@ -68,6 +68,21 @@ class Docs
     }
 
     /**
+     * @param  string $blade
+     * @param  array  $mergeData
+     *
+     * @return \Illuminate\Contracts\View\View|\Illuminate\Contracts\View\Factory
+     */
+    public function view(string $blade = null, array $mergeData = [])
+    {
+        return view($blade ?? 'sajya::docs', [
+            'title'      => config('app.name'),
+            'uri'        => config('app.url').$this->route->uri(),
+            'procedures' => $this->getAnnotations(),
+        ] + $mergeData);
+    }
+
+    /**
      * @return \Illuminate\Support\Collection
      */
     public function getAnnotationsJson(): Collection
