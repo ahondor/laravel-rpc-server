@@ -159,7 +159,7 @@ class Docs
 
         $values = $this
             ->getAnnotationsFrom($method, $class)
-            ->mapWithKeys(fn (object $param) => [$param->name => $param->value]);
+            ->mapWithKeys(fn (object $param) => $param->toArray());
 
         foreach ($values as $key => $param) {
             $key = Str::of($key);
