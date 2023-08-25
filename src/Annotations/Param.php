@@ -7,23 +7,35 @@ namespace Sajya\Server\Annotations;
 /**
  * @Annotation
  */
-final class Result
+final class Param
 {
+    /**
+     * @var string
+     */
+    public string $name;
+
     /**
      * @var string
      */
     public string $type;
 
     /**
-     * @var string|mixed
+     * @var bool
      */
-    public $example;
+    public bool $optional = false;
+
+    /**
+     * @var mixed
+     */
+    public $default = null;
 
     public function toArray()
     {
         return array_filter([
-            'type' => $this->type,
-            'example' => $this->example ?? null,
+            'name'     => $this->name,
+            'type'     => $this->type,
+            'optional' => $this->optional,
+            'default'  => $this->default ?? null,
         ], fn ($item) => !is_null($item));
     }
 }
