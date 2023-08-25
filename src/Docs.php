@@ -75,7 +75,7 @@ class Docs
      */
     public function view(string $blade = null, array $mergeData = [])
     {
-        return view($blade ?? 'sajya::docs', [
+        return view($blade ?? 'sajya::docs-cards', [
             'title'      => config('app.name'),
             'uri'        => config('app.url').$this->route->uri(),
             'procedures' => $this->getAnnotations(),
