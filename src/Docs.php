@@ -134,13 +134,17 @@ class Docs
                             'jsonrpc' => '2.0',
                             'id'      => 1,
                             'method'  => $name.$this->delimiter.$method->getName(),
-                            'params'  => $this->getMethodAnnotations($method, Param::class),
+                            'params'  => collect($this->getMethodAnnotations($method, Param::class))->mapWithKeys(function($param) {
+                                return [$param['name'] => $param['type']];
+                            })
                         ];
 
                         $response = [
                             'jsonrpc' => '2.0',
                             'id'      => 1,
-                            'result'  => $this->getMethodAnnotations($method, Result::class),
+                            'result'  => collect($this->getMethodAnnotations($method, Result::class))->map(function($param) {
+                                return $param['type'];
+                            })->first()
                         ];
 
                         $factory = DocBlockFactory::createInstance();
@@ -173,7 +177,7 @@ class Docs
 
         $values = $this
             ->getAnnotationsFrom($method, $class)
-            ->mapWithKeys(fn (object $param) => $param->toArray());
+            ->map(fn (object $param) => $param->toArray());
 
         foreach ($values as $key => $param) {
             $key = Str::of($key);
