@@ -17,5 +17,13 @@ final class Result
     /**
      * @var string|mixed
      */
-    public $value;
+    public $example;
+
+    public function toArray()
+    {
+        return array_filter([
+            'type'     => $this->type,
+            'example'  => $this->example ?? null,
+        ], fn ($item) => !is_null($item));
+    }
 }
