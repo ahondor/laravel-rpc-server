@@ -93,6 +93,7 @@ class Docs
                 $name = $reflectionClass->getProperty('name')->getValue();
 
                 return collect($reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC))
+                    ->filter(fn ($method) => $method->getName() !== '__construct')
                     ->map(function (ReflectionMethod $method) use ($name) {
 
                         $params = $this->getAnnotationsFrom($method, Param::class)
@@ -129,6 +130,7 @@ class Docs
                 $name = $reflectionClass->getProperty('name')->getValue();
 
                 return collect($reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC))
+                    ->filter(fn ($method) => $method->getName() !== '__construct')
                     ->map(function (ReflectionMethod $method) use ($name) {
                         $request = [
                             'jsonrpc' => '2.0',
