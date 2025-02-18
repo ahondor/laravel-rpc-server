@@ -4,17 +4,14 @@ declare(strict_types=1);
 
 namespace Sajya\Server;
 
-use Doctrine\Common\Annotations\AnnotationReader;
-use Illuminate\Config\Repository;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
-use phpDocumentor\Reflection\DocBlockFactory;
 use ReflectionClass;
 use ReflectionMethod;
 use Sajya\Server\Annotations\Param;
-use Sajya\Server\Annotations\Result;
+use Sajya\Server\Attributes\RpcMethod;
 
 class Docs
 {
@@ -132,13 +129,17 @@ class Docs
                 return collect($reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC))
                     ->filter(fn ($method) => $method->getName() !== '__construct')
                     ->map(function (ReflectionMethod $method) use ($name) {
+
+                        $attributes = $this->getMethodAnnotations($method);
+
                         $request = [
                             'jsonrpc' => '2.0',
                             'id'      => 1,
                             'method'  => $name.$this->delimiter.$method->getName(),
                             'params'  => collect($this->getMethodAnnotations($method, Param::class))->mapWithKeys(function($param) {
                                 return [$param['name'] => $param['type']];
-                            })
+                            }),
+                            // 'params'  => $attributes?->params,
                         ];
 
                         $response = [
@@ -146,19 +147,17 @@ class Docs
                             'id'      => 1,
                             'result'  => collect($this->getMethodAnnotations($method, Result::class))->map(function($param) {
                                 return $param['type'];
-                            })->first()
+                            })->first(),
+                            // 'result'  => $attributes?->result,
                         ];
-
-                        $factory = DocBlockFactory::createInstance();
-                        $comment = $method->getDocComment();
-                        $docblock = $factory->create($comment === false ? ' ' : $comment);
-                        $description = $docblock->getSummary();
 
                         return [
                             'name'        => $name,
-                            'description' => $description,
                             'delimiter'   => $this->delimiter,
                             'method'      => $method->getName(),
+                            'description' => $attributes?->description,
+                            'params'      => $attributes?->params,
+                            'result'      => $attributes?->result,
                             'request'     => $this->highlight($request),
                             'response'    => $this->highlight($response),
                         ];
@@ -167,97 +166,53 @@ class Docs
             ->flatten(1);
     }
 
-    /**
-     * @param ReflectionMethod $method
-     * @param string           $class
-     *
-     * @return array
-     */
-    private function getMethodAnnotations(ReflectionMethod $method, string $class): array
+    private function getMethodAnnotations(ReflectionMethod $method): ?RpcMethod
     {
-        $repository = new Repository();
+        $attributes = $method->getAttributes(RpcMethod::class);
 
-        $values = $this
-            ->getAnnotationsFrom($method, $class)
-            ->map(fn (object $param) => $param->toArray());
+        // $values = $this
+        //     ->getAnnotationsFrom($method, $class)
+        //     ->map(fn (object $param) => $param->toArray());
+        foreach ($attributes as $attribute) {
+            /** @var RpcMethod $instance */
+            $instance = $attribute->newInstance();
 
-        foreach ($values as $key => $param) {
-            $key = Str::of($key);
-
-            if ($key->endsWith('.')) {
-                $repository->push((string) $key->replaceLast('.', ''), $param);
-            } else {
-                $repository->set((string) $key, $param);
-            }
+            return $instance;
         }
 
-        return $repository->all();
+        return null;
     }
 
     /**
-     * @param ReflectionMethod $method
-     * @param string           $class
+     * Highlights a JSON structure using HTML span tags with colors.
      *
-     * @return Collection
-     */
-    private function getAnnotationsFrom(ReflectionMethod $method, string $class): Collection
-    {
-        $annotations = (new AnnotationReader())->getMethodAnnotations($method);
-
-        return collect($annotations)->filter(fn ($annotation) => is_a($annotation, $class));
-    }
-
-    /**
-     * @param array $value
+     * @param array $value The JSON data to be highlighted.
      *
-     * @throws \JsonException
+     * @throws \JsonException If encoding fails.
      *
-     * @return \Illuminate\Support\Stringable
+     * @return \Illuminate\Support\Stringable The highlighted JSON as a string.
      */
     private function highlight(array $value): Stringable
     {
-        ini_set('highlight.comment', '#008000');
-        ini_set('highlight.default', '#000000');
-        ini_set('highlight.html', '#808080');
-        ini_set('highlight.keyword', '#998;');
-        ini_set('highlight.string', '#d14');
-
         $json = json_encode($value, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        $code = highlight_string('<?php '.$json, true);
 
-        $docs = Str::of($code)
-            ->replaceFirst('&lt;?php&nbsp;', '')
-            ->replace('&nbsp;&nbsp;&nbsp;&nbsp;', '&nbsp;&nbsp;');
+        return Str::of($json)
+            // Highlight keys (both string and numeric)
+            ->replaceMatches('/"(\w+)":/i', '"<span style="color:#A0AEC0;">$1</span>":')
+            ->replaceMatches('/"(\d+)":/i', '"<span style="color:#A0AEC0;">$1</span>":')
 
-        $keys = $this->arrayKeysMulti($value);
+            // Highlight null values
+            ->replaceMatches('/":\s*(null)/i', '": <span style="color:#F7768E;">$1</span>')
 
-        foreach ($keys as $item) {
-            $docs = $docs->replace(
-                '<span style="color: #d14">"'.$item.'"</span>',
-                '<span style="color: #333">"'.$item.'"</span>'
-            );
-        }
+            // Highlight string values
+            ->replaceMatches('/":\s*"([^"]*)"/', '": "<span style="color:#9ECE6A;">$1</span>"')
 
-        return $docs;
-    }
+            // Highlight numeric values
+            ->replaceMatches('/":\s*(\d+(\.\d+)?)/', '": <span style="color:#E0AF68;">$1</span>')
 
-    /**
-     * @param array $array
-     *
-     * @return array
-     */
-    private function arrayKeysMulti(array $array): array
-    {
-        $keys = [];
+            // Highlight boolean values (true/false)
+            ->replaceMatches('/":\s*(true|false)/i', '": <span style="color:#7AA2F7;">$1</span>')
 
-        foreach ($array as $key => $value) {
-            $keys[] = $key;
-
-            if (is_array($value)) {
-                $keys = array_merge($keys, $this->arrayKeysMulti($value));
-            }
-        }
-
-        return $keys;
+            ->wrap('<pre style="color:rgba(212,212,212,0.75);">', '</pre>');
     }
 }

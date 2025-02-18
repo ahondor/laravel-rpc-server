@@ -4,158 +4,158 @@ declare(strict_types=1);
 
 namespace Sajya\Server\Tests\Unit;
 
-use Closure;
-use Generator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\TestWith;
 use Sajya\Server\Facades\RPC;
 use Sajya\Server\Tests\FixtureBind;
 use Sajya\Server\Tests\TestCase;
 
 class ExpectedTest extends TestCase
 {
+    private const REQUESTS_PATH = './tests/Expected/Requests/';
+    private const RESPONSES_PATH = './tests/Expected/Responses/';
+
     /**
-     * @return Generator
+     * Test with debug true and response structure validation
      */
-    public function exampleCalls(): Generator
+    public function testAbortWithDebugTrue(): void
     {
-        yield ['testAbort', function () {
-            config()->set('app.debug', true);
-        }, function (TestResponse $response) {
-            $response->assertJsonStructure([
-                'id',
-                'error' => [
-                    'code',
-                    'message',
-                    'data',
-                    'file',
-                    'line',
-                    'trace',
-                ],
-                'jsonrpc',
-            ]);
-        }];
+        config()->set('app.debug', true);
 
-        yield ['testAbort', function () {
-            config()->set('app.debug', false);
-        }, function (TestResponse $response) {
-            $json = $response->getContent();
-            $result = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        $response = $this->testHasCorrectRequestResponse('testAbort');
 
-            $this->assertFalse(isset(
-                $result['file'],
-                $result['line'],
-                $result['trace'],
-            ));
-
-            config()->set('app.debug', true);
-        }];
-        yield ['testUuidOk'];
-        yield ['testValidationId'];
-        yield ['testBatchInvalid'];
-        yield ['testBatchNotificationSum', static function () {
-            Log::shouldReceive('info')
-                ->twice()
-                ->with('Result procedure: 3')
-                ->with('Result procedure: 4');
-        }];
-        yield ['testBatchOneError'];
-        yield ['testBatchSum'];
-        yield ['testDelimiter', null, null, 'rpc.delimiter'];
-        yield ['testDependencyInjection'];
-        yield ['testFindMethod'];
-        yield ['testFindProcedure'];
-        yield ['testInvalidParams'];
-        yield ['testNotificationSum', static function () {
-            Log::shouldReceive('info')
-                ->once()
-                ->with('Result procedure: 3');
-        }];
-        yield ['testNullResult'];
-        yield ['testParseError'];
-        yield ['testSimpleInValidationSum'];
-        yield ['testSimpleValidationSum'];
-        yield ['testWithAnEmptyArray'];
-        yield ['testWithAnInvalidBatchButNotEmpty'];
-        yield ['testWithInvalidBatch'];
-        yield ['testUnknownVersion'];
-        yield ['testInternalError'];
-        yield ['testCallCloseMethod'];
-        yield ['testRuntimeError'];
-        yield ['testInvalidRequestException'];
-        yield ['testCallNoExistMethod'];
-
-        // Exception
-        yield ['testDivisionException'];
-        yield ['testReportException', function () {
-            $this->assertNull(config('render-response-exception'));
-        }, function () {
-            $this->assertStringContainsString('Enabled', config('render-response-exception'));
-        }];
-
-        // Binding
-        yield ['testBindDeepValue'];
-        yield ['testBindSubtract'];
-        yield ['testBindSubtractRewriteBind', static function () {
-            RPC::bind('a', function () {
-                return 100;
-            });
-        }];
-
-        yield ['testBindModel', static function () {
-            RPC::model('fixtureModel', FixtureBind::class);
-        }];
-
-        // Proxy
-        yield ['testProxyMethod'];
+        $response->assertJsonStructure([
+            'id',
+            'error' => ['code', 'message', 'data', 'file', 'line', 'trace'],
+            'jsonrpc',
+        ]);
     }
 
     /**
-     * @param string       $file
-     * @param Closure|null $before
-     * @param Closure|null $after
-     * @param string       $route
-     *
-     * @throws \JsonException
-     *
-     * @dataProvider exampleCalls
+     * Test with debug false and absence of error details
      */
-    public function testHasCorrectRequestResponse(
-        string $file,
-        Closure $before = null,
-        Closure $after = null,
-        string $route = 'rpc.point'
-    ): void {
-        if ($before !== null) {
-            $before();
-        }
+    public function testAbortWithDebugFalse(): void
+    {
+        config()->set('app.debug', false);
 
-        $response = $this->callRPC($file, $route);
+        $response = $this->testHasCorrectRequestResponse('testAbort');
+        $result = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
 
-        if ($after !== null) {
-            $after($response);
-        }
+        $this->assertArrayNotHasKey('file', $result);
+        $this->assertArrayNotHasKey('line', $result);
+        $this->assertArrayNotHasKey('trace', $result);
+
+        config()->set('app.debug', true);
     }
 
     /**
+     * Test logging for batch notification sum
+     */
+    public function testBatchNotificationSum(): void
+    {
+        Log::shouldReceive('info')
+            ->twice()
+            ->with('Result procedure: 3')
+            ->with('Result procedure: 4');
+
+        Log::shouldReceive('error')
+            ->never();
+
+        $this->testHasCorrectRequestResponse('testBatchNotificationSum');
+    }
+
+    /**
+     * Test logging for single notification sum
+     */
+    public function testNotificationSum(): void
+    {
+        Log::shouldReceive('info')
+            ->once()
+            ->with('Result procedure: 3');
+
+        Log::shouldReceive('error')
+            ->never();
+
+        $this->testHasCorrectRequestResponse('testNotificationSum');
+    }
+
+    /**
+     * Test provider with exception response validation
+     */
+    public function testReportException(): void
+    {
+        $this->assertNull(config('render-response-exception'));
+
+        $this->testHasCorrectRequestResponse('testReportException');
+
+        $this->assertStringContainsString('Enabled', config('render-response-exception'));
+    }
+
+    /**
+     * Test with rewritten binding for subtraction
+     */
+    public function testBindSubtractRewriteBind(): void
+    {
+        RPC::bind('a', fn () => 100);
+
+        $this->testHasCorrectRequestResponse('testBindSubtractRewriteBind');
+    }
+
+    /**
+     * Test model binding for fixture
+     */
+    public function testBindModel(): void
+    {
+        RPC::model('fixtureModel', FixtureBind::class);
+
+        $this->testHasCorrectRequestResponse('testBindModel');
+    }
+
+    /**
+     * Helper for making requests and validating responses
+     *
      * @param string $path
      * @param string $route
      *
-     * @throws \JsonException
-     *
      * @return TestResponse
      */
-    private function callRPC(string $path, string $route): TestResponse
+    #[TestWith(['testUuidOk'])]
+    #[TestWith(['testValidationId'])]
+    #[TestWith(['testBatchInvalid'])]
+    #[TestWith(['testBatchOneError'])]
+    #[TestWith(['testBatchSum'])]
+    #[TestWith(['testDelimiter', 'rpc.delimiter'])]
+    #[TestWith(['testDependencyInjection'])]
+    #[TestWith(['testFindMethod'])]
+    #[TestWith(['testFindProcedure'])]
+    #[TestWith(['testInvalidParams'])]
+    #[TestWith(['testNullResult'])]
+    #[TestWith(['testParseError'])]
+    #[TestWith(['testSimpleInValidationSum'])]
+    #[TestWith(['testSimpleValidationSum'])]
+    #[TestWith(['testWithAnEmptyArray'])]
+    #[TestWith(['testWithAnInvalidBatchButNotEmpty'])]
+    #[TestWith(['testWithInvalidBatch'])]
+    #[TestWith(['testUnknownVersion'])]
+    #[TestWith(['testInternalError'])]
+    #[TestWith(['testCallCloseMethod'])]
+    #[TestWith(['testRuntimeError'])]
+    #[TestWith(['testInvalidRequestException'])]
+    #[TestWith(['testCallNoExistMethod'])]
+    #[TestWith(['testDivisionException'])]
+    #[TestWith(['testBindDeepValue'])]
+    #[TestWith(['testBindSubtract'])]
+    #[TestWith(['testProxyMethod'])]
+    public function testHasCorrectRequestResponse(string $path, string $route = 'rpc.point'): TestResponse
     {
-        $request = file_get_contents("./tests/Expected/Requests/$path.json");
-        $response = file_get_contents("./tests/Expected/Responses/$path.json");
+        $request = file_get_contents(self::REQUESTS_PATH."$path.json");
+        $response = file_get_contents(self::RESPONSES_PATH."$path.json");
 
         return $this
             ->call('POST', route($route), [], [], [], [], $request)
             ->assertOk()
             ->assertHeader('content-type', 'application/json')
-            ->assertJson(
-                json_decode($response, true, 512, JSON_THROW_ON_ERROR)
-            );
+            ->assertJson(json_decode($response, true, 512, JSON_THROW_ON_ERROR));
     }
 }

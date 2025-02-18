@@ -36,9 +36,7 @@ class FixtureProcedure extends Procedure
         abort(404, 'Abort helper');
     }
 
-    public function alwaysResult(): void
-    {
-    }
+    public function alwaysResult(): void {}
 
     public function dependencyInjection(Request $request)
     {
@@ -86,7 +84,7 @@ class FixtureProcedure extends Procedure
 
     public function runtimeError()
     {
-        throw new RuntimeRpcException();
+        throw new RuntimeRpcException;
     }
 
     public function invalidRequestException()
@@ -110,7 +108,7 @@ class FixtureProcedure extends Procedure
      */
     public function renderException(): mixed
     {
-        throw new RenderResponseException();
+        throw new RenderResponseException;
     }
 
     /**

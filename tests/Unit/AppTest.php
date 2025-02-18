@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Sajya\Server\Tests\Unit;
 
+use Illuminate\Support\Facades\App as LaravelApplication;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Sajya\Server\App;
@@ -33,9 +34,15 @@ class AppTest extends TestCase
             FixtureProcedure::class,
         ]);
 
-        $response = $guide->terminate('{"jsonrpc": "2.0", "method": "fixture@validationMethod", "params": {"a": 100500, "b": 300}}');
+        LaravelApplication::partialMock()
+            ->shouldReceive('terminate')
+            ->once();
 
-        Log::shouldReceive('info')->with('Result procedure: 100800');
+        Log::partialMock()
+            ->shouldReceive('info')
+            ->with('Result procedure: 100800');
+
+        $response = $guide->terminate('{"jsonrpc": "2.0", "method": "fixture@validationMethod", "params": {"a": 100500, "b": 300}}');
 
         $this->assertNull($response);
     }
@@ -52,7 +59,7 @@ class AppTest extends TestCase
 
     public function testFindMethodProcedure(): void
     {
-        $request = tap(new Request(), static function (Request $request) {
+        $request = tap(new Request, static function (Request $request) {
             $request->setId(1);
             $request->setMethod('fixture@subtract');
             $request->setParams([42, 23]);
@@ -64,7 +71,7 @@ class AppTest extends TestCase
 
     public function testNotFoundMethodProcedure(): void
     {
-        $request = tap(new Request(), static function (Request $request) {
+        $request = tap(new Request, static function (Request $request) {
             $request->setId(1);
             $request->setMethod('notFoundMethod');
             $request->setParams([42, 23]);
@@ -102,5 +109,21 @@ class AppTest extends TestCase
         $this->assertNull($response);
 
         Bus::assertDispatchedAfterResponse(HandleProcedure::class);
+    }
+
+    public function testEnsureBatchSizeWithinLimit(): void
+    {
+        $guide = new App([
+            FixtureProcedure::class,
+        ]);
+
+        $content = collect(range(1, 51))->map(function () {
+            return '{"jsonrpc": "2.0", "method": "fixture@ok"}';
+        })->implode(',');
+
+        /** @var \Sajya\Server\Http\Response $response */
+        $response = $guide->handle('['.$content.']');
+
+        $this->assertEquals('Maximum batch size exceeded.', $response->getError()->getMessage());
     }
 }

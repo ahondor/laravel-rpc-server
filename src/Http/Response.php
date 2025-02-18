@@ -36,12 +36,12 @@ class Response implements JsonSerializable
     /**
      * Make Response instance based on result and request.
      */
-    public static function makeFromResult($result, Request $request = null): self
+    public static function makeFromResult($result, ?Request $request = null): self
     {
-        $request ??= new Request();
+        $request ??= new Request;
 
         return tap(
-            new self(),
+            new self,
             fn (Response $response) => $response->setId($request->getId())
                 ->setVersion($request->getVersion())
                 ->setResult($result)
@@ -150,7 +150,7 @@ class Response implements JsonSerializable
      *
      * RPC error, if response results in fault.
      */
-    public function setError(Exception $error = null): Response
+    public function setError(?Exception $error = null): Response
     {
         $this->error = $error;
 

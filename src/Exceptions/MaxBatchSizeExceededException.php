@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Sajya\Server\Exceptions;
 
-class InvalidRequestException extends RpcException
+class MaxBatchSizeExceededException extends RpcException
 {
     /**
-     * InvalidRequestException constructor.
+     * MaxBatchSizeExceededException constructor.
      *
      * @param null $data
      */
@@ -19,19 +19,18 @@ class InvalidRequestException extends RpcException
     }
 
     /**
-     * The JSON sent is not a valid Request object.
+     * Retrieve the error code.
      */
     protected function getDefaultCode(): int
     {
-        return -32600;
+        return -32000;
     }
 
     /**
-     * A String providing a short description of the error.
-     * The message SHOULD be limited to a concise single sentence.
+     * Retrieve the error message.
      */
     protected function getDefaultMessage(): string
     {
-        return 'Invalid Request';
+        return 'Maximum batch size exceeded.';
     }
 }

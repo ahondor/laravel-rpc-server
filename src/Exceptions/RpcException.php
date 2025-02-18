@@ -22,7 +22,7 @@ abstract class RpcException extends RuntimeException implements JsonSerializable
      * @param int|null              $code
      * @param RuntimeException|null $previous
      */
-    public function __construct(string $message = null, int $code = null, RuntimeException $previous = null)
+    public function __construct(?string $message = null, ?int $code = null, ?RuntimeException $previous = null)
     {
         parent::__construct(
             $message ?? $this->getDefaultMessage(),
@@ -88,5 +88,15 @@ abstract class RpcException extends RuntimeException implements JsonSerializable
         }
 
         return $message;
+    }
+
+    /**
+     * Report the exception.
+     *
+     * @return bool|null
+     */
+    public function report(): ?bool
+    {
+        return true;
     }
 }
