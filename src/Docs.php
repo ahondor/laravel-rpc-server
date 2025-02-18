@@ -11,6 +11,7 @@ use Illuminate\Support\Stringable;
 use ReflectionClass;
 use ReflectionMethod;
 use Sajya\Server\Annotations\Param;
+use Sajya\Server\Annotations\Result;
 use Sajya\Server\Attributes\RpcMethod;
 
 class Docs
